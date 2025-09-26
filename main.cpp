@@ -201,6 +201,89 @@ void findFileByName(string targetFile, filesystem::path directory, int startPosX
     }
 }
 
+void findByFileExtension(string targetExtension, filesystem::path directory, int startPosX, int startPosY) {
+    int y = startPosY;
+    int filesFound = 0;
+    for (const auto& entry : filesystem::recursive_directory_iterator(directory)) {
+        if (entry.is_regular_file() && entry.path().extension() == targetExtension) {
+            SetCursorPosition(startMenuPrintX, y);
+            ++y;
+            cout << "Found: " << entry.path() << endl;
+            ++filesFound;
+        }
+    }
+
+    if (filesFound == 0) {
+        SetCursorPosition(startMenuPrintX, y);
+        cout << "No files has been found with matching the name \"" << targetExtension << "\" \n";
+    }
+}
+
+int findMatchingWordsFile(const string& filepath, string word) {
+    string str;
+    int lineNumber = 0;
+    int wordsCount = 0;
+
+    // lowercase the search word
+    transform(word.begin(), word.end(), word.begin(), ::tolower);
+    ifstream file(filepath);
+    if (file.is_open()) {
+        while (getline(file, str)) {
+            lineNumber++;
+
+            // make a lowercase copy of the line
+            string lowerStr = str;
+            transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower);
+
+            if (lowerStr.find(word) != string::npos) {
+                cout << "'" << word << "' found at line: " << lineNumber << endl;
+                wordsCount++;
+            }
+        }
+    }
+    return wordsCount;
+}
+
+void findAndReplaceWordsFile(const string& filepath, string wordToReplace, string wordToReplaceWith) {
+    string str;
+    int lineNumber = 0;
+    string fileContent;
+
+    // lowercase the search word
+    transform(wordToReplace.begin(), wordToReplace.end(), wordToReplace.begin(), ::tolower);
+    ifstream file(filepath);
+    if (file.is_open()) {
+        while (getline(file, str)) {
+            lineNumber++;
+
+            // make a lowercase copy of the line
+            string lowerStr = str;
+            transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower);
+
+            int wordLength = wordToReplace.length();
+            int pos = lowerStr.find(wordToReplace);
+            if (pos != string::npos) {
+                str.replace(pos, wordLength, wordToReplaceWith);
+            }
+            fileContent += str += '\n';
+        }
+        file.close();
+
+        ofstream file(filepath);
+        if (file.is_open()) {
+            file << fileContent;
+        }
+        file.close();
+    }
+}
+
+void printFileMenu(const char* controlMenuFile[], const int fileMenuSize) {
+    for (int i = 0; i < fileMenuSize; ++i) {
+        SetCursorPosition(startMenuPrintX, startMenuPrintY + i);
+        cout << controlMenuFile[i] << endl;
+    }
+}
+
 int main()
 {
     setlocale(LC_ALL, "ukr");
@@ -320,7 +403,11 @@ int main()
             int index = 1;
             for (const filesystem::directory_entry& entry : filesystem::directory_iterator(path))
             {
-                
+                const int fileMenuSize = 2;
+                const char* controlMenuFile[fileMenuSize] = {
+                    "Cntl + F - find the word repetitions in the file",
+                    "Cntl + R - replace the particular word in the file"
+                };
                 if (index == active) {
                     if (!entry.is_directory()) {
                         // read the full path
@@ -331,6 +418,45 @@ int main()
                         string fileData = readDataFromFile(fullFilePath.string());
                         system("cls");
                         cout << fileData;
+                        printFileMenu(controlMenuFile, fileMenuSize);
+                        while (key != 13) {
+                            key = _getch();
+                            if (key == 6) {
+                                string word;
+                                SetCursorPosition(startMenuPrintX, startMenuPrintY + fileMenuSize + 2);
+                                cout << "Enter the word to find: "; getline(cin, word);
+                                int wordRepetitions = findMatchingWordsFile(entry.path().string(), word);
+                                cin.get();
+
+
+                                system("cls");
+                                cout << fileData;
+                                printFileMenu(controlMenuFile, fileMenuSize);
+                            }
+                            else if (key == 18) {
+                                string word, wordToReplaceWith;
+                                SetCursorPosition(startMenuPrintX, startMenuPrintY + fileMenuSize + 2);
+                                cout << "Enter the word to replace: "; getline(cin, word);
+                                SetCursorPosition(startMenuPrintX, startMenuPrintY + fileMenuSize + 3);
+                                cout << "Enter the word to replace with: "; getline(cin, wordToReplaceWith);
+                                findAndReplaceWordsFile(entry.path().string(), word, wordToReplaceWith);
+
+                                //reload file
+                                ifstream file(entry.path());
+                                string fileData;
+                                if (file.is_open()) {
+                                    string line;
+                                    while (getline(file, line)) {
+                                        fileData += line + "\n";
+                                    }
+                                    file.close();
+                                }
+
+                                system("cls");
+                                cout << fileData;
+                                printFileMenu(controlMenuFile, fileMenuSize);
+                            }
+                        }
                         cin.get();
                         ShowConsoleCursor(false);
                         system("cls");
@@ -386,14 +512,26 @@ int main()
             };
 
             int choice = menuControl(searchMenu, searchMenuSize, startMenuPrintX, infoPrintPosY + 1);
-            string targetFile;
-            if (choice == 2) {
+            
+            if (choice == 1) {
+                string targetExtension;
+                SetCursorPosition(startMenuPrintX, infoPrintPosY + 3);
+                ShowConsoleCursor(true);
+                cout << "Enter the extension of a file with a dot: "; getline(cin, targetExtension);
+                findByFileExtension(targetExtension, path, startMenuPrintX, infoPrintPosY + 5);
+                cin.get();
+                ShowConsoleCursor(false);
+                system("cls");
+            }
+            else if (choice == 2) {
+                string targetFile;
                 SetCursorPosition(startMenuPrintX, infoPrintPosY + 3);
                 ShowConsoleCursor(true);
                 cout << "Enter the name of the file to search with an extention: "; getline(cin, targetFile);
-                ShowConsoleCursor(false);
                 findFileByName(targetFile, path, startMenuPrintX, infoPrintPosY + 5);
                 cin.get();
+                ShowConsoleCursor(false);
+                system("cls");
             }
             
             

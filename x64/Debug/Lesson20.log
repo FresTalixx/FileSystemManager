@@ -1,3 +1,5 @@
 ﻿  main.cpp
 D:\IT STEP\C++\Lesson20\Lesson20\main.cpp(152,12): warning C4244: 'return': conversion from '__int64' to 'int', possible loss of data
+D:\IT STEP\C++\Lesson20\Lesson20\main.cpp(263,28): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\IT STEP\C++\Lesson20\Lesson20\main.cpp(264,21): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   Lesson20.vcxproj -> D:\IT STEP\C++\Lesson20\x64\Debug\Lesson20.exe
