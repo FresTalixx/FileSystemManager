@@ -11,12 +11,13 @@ int menuControl(const char* menu[], int menuSize, int startLineX, int startLineY
 	SetColor(Colors::WHITE, Colors::BLACK);
 
 	for (int i = 0; i < menuSize; ++i) {
+		SetCursorPosition(startLineX, y + i);
 		cout << menu[i] << "\n";
 	}
 
 	SetCursorPosition(startLineX, startLineY);
 	SetColor(Colors::BLACK, Colors::WHITE);
-	cout << menu[y];
+	cout << menu[y - startLineY];
 	ShowConsoleCursor(false);
 
 	while (1) {
@@ -31,24 +32,26 @@ int menuControl(const char* menu[], int menuSize, int startLineX, int startLineY
 			case 72:
 				SetCursorPosition(startLineX, y);
 				SetColor(Colors::WHITE, Colors::BLACK);
-				cout << menu[y];
-				--y;
-				if (y < 0) y = menuSize - 1;
+				cout << menu[y - startLineY];
+				--y + startLineY;
+				if (y < startLineY)
+					y = startLineY + menuSize - 1;
 				SetCursorPosition(startLineX, y);
 				SetColor(Colors::BLACK, Colors::WHITE);
-				cout << menu[y];
+				cout << menu[y - startLineY];
 				SetColor(Colors::WHITE, Colors::BLACK);
 				break;
 
 			case 80:
 				SetCursorPosition(startLineX, y);
 				SetColor(Colors::WHITE, Colors::BLACK);
-				cout << menu[y];
-				++y;
-				if (y > menuSize - 1) y = 0;
+				cout << menu[y - startLineY];
+				++y + startLineY;
+				if (y > startLineY + menuSize - 1)
+					y = startLineY;
 				SetCursorPosition(startLineX, y);
 				SetColor(Colors::BLACK, Colors::WHITE);
-				cout << menu[y];
+				cout << menu[y - startLineY];
 				SetColor(Colors::WHITE, Colors::BLACK);
 				break;
 
@@ -56,7 +59,9 @@ int menuControl(const char* menu[], int menuSize, int startLineX, int startLineY
 
 		}
 		else if (key == 13) {
-			return y + 1;
+			SetColor(WHITE, BLACK);
+			return y - startLineY + 1;
+
 		}
 	}
 

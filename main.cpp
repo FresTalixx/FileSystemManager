@@ -14,9 +14,31 @@ using namespace std;
 
 int startMenuPrintX = 55;
 int startMenuPrintY = 3;
-const int menuSize = 6;
+const int menuSize = 9;
 
 int infoPrintPosY = startMenuPrintY + menuSize + 1;
+
+// print all of the disks
+void listAllTheDisks(string* disks) {
+    DWORD drives = GetLogicalDrives();
+
+    for (char letter = 'A'; letter <= 'Z'; ++letter) {
+        if (drives & (1 << (letter - 'A'))) {
+            string root = string(1, letter) + ":\\";
+            try {
+                if (filesystem::exists(root)) {
+                    cout << root << "\n";
+                    disks[letter - 'A'] = root;
+                }
+            }
+            catch (const filesystem::filesystem_error& e) {
+                cerr << "Error accessing " << root << ": " << e.what() << "\n";
+            }
+        }
+    }
+
+}
+
 
 // Вивід вмісту директорії
 void drawDirectoryContents(const filesystem::path& path, int activeRow)
@@ -30,6 +52,7 @@ void drawDirectoryContents(const filesystem::path& path, int activeRow)
     int col3Width = 20;
 
     int index = 0;
+    bool isRoot = false;
     
 
     const char* controlMenu[menuSize] = {
@@ -38,13 +61,17 @@ void drawDirectoryContents(const filesystem::path& path, int activeRow)
         "Enter - enter directory\n",
         "Backspace - move to parent directory\n",
         "Cntl + N - create new directory\n",
-        "Cntl + O - open the file\n"
+        "Cntl + O - open the file\n",
+        "Cntl + X - cut the file\n",
+        "Cntl + C - copy the file\n",
+        "Cntl + V - paste the file\n"
     };
 
-    
-    if (path != path.root_directory())
+
     if (!path.parent_path().empty())
     {
+        
+        isRoot = false;
         if (index == activeRow) {
             SetColor(BLACK, WHITE);
         }
@@ -54,34 +81,62 @@ void drawDirectoryContents(const filesystem::path& path, int activeRow)
 
         index++;
     }
+    if (!isRoot) {
+        for (const filesystem::directory_entry& entry : filesystem::directory_iterator(path))
+        {
+            if (index == activeRow) {
+                SetColor(BLACK, WHITE);
+            }
+            else {
+                SetColor(WHITE, BLACK);
+            }
+            // Ім'я файлу
+            cout << left << setw(col1Width) << entry.path().filename().string();
+            // Файл чи директорія
+            if (entry.is_directory()) {
+                cout << "<DIR>";
+            }
+            else {
+                cout << setw(col2Width) << filesystem::file_size(entry);
+            }
 
-    for (const filesystem::directory_entry& entry : filesystem::directory_iterator(path))
-    {
+
+
+
+            SetColor(WHITE, BLACK);
+            cout << endl;
+
+            index++;
+
+        }
+    }
+    /*else {
+
         if (index == activeRow) {
             SetColor(BLACK, WHITE);
         }
         else {
             SetColor(WHITE, BLACK);
         }
-        // Ім'я файлу
-        cout << left << setw(col1Width) << entry.path().filename().string();
-        // Файл чи директорія
-        if (entry.is_directory()) {
-            cout << "<DIR>";
-        }
-        else {
-            cout << setw(col2Width) << filesystem::file_size(entry);
-        }
 
-        
-         
+        string drives[26];
 
-        SetColor(WHITE, BLACK);
+        int drivesCount = 0;
+        int index = 0;
+        listAllTheDisks(drives);
+        for (int i = 0; i < 26; i++) {
+            if (!drives[i].empty()) {
+                cout << drives[i] << endl;
+                ++drivesCount;
+            }
+        }*/
+
+       /* SetColor(WHITE, BLACK);
         cout << endl;
 
         index++;
-
-    }
+    }*/
+    
     for (int i = 0; i < menuSize; ++i) {
         SetCursorPosition(startMenuPrintX, startMenuPrintY + i);
         cout << controlMenu[i];
@@ -112,10 +167,12 @@ string readDataFromFile(string filePath) {
 }
 
 void copyFileTo(filesystem::path from, filesystem::path to, bool deleteCopyPathFile) {
+    
+
     if (from.string() != "") {
-        if (from.extension() == "") { // directory check cause directories don't have extensions
-            filesystem::create_directories(from.filename().string());
-            filesystem::copy(from, to / from.filename());
+        if (filesystem::is_directory(from)) { // directory check cause directories don't have extensions
+            filesystem::create_directories(to / from.filename().string());
+            filesystem::copy(from, to / from.filename(), filesystem::copy_options::overwrite_existing);
         }
         else {
             filesystem::copy(from, to);
@@ -126,9 +183,26 @@ void copyFileTo(filesystem::path from, filesystem::path to, bool deleteCopyPathF
 
 }
 
+void findFileByName(string targetFile, filesystem::path directory, int startPosX, int startPosY) {
+    int y = startPosY;
+    int filesFound = 0;
+    for (const auto& entry : filesystem::recursive_directory_iterator(directory)) {
+        if (entry.is_regular_file() && entry.path().filename() == targetFile) {
+            SetCursorPosition(startMenuPrintX, y);
+            ++y;
+            cout << "Found: " << entry.path() << endl;
+            ++filesFound;
+        }
+    }
+
+    if (filesFound == 0) {
+        SetCursorPosition(startMenuPrintX, y);
+        cout << "No files has been found with matching the name \"" << targetFile << "\" \n";
+    }
+}
+
 int main()
 {
-    
     setlocale(LC_ALL, "ukr");
     ShowConsoleCursor(false);
 
@@ -142,7 +216,7 @@ int main()
     string newFolderName;
 
     filesystem::path copyPath;
-    bool deleteCopyPathFile;
+    bool deleteCopyPathFile = false;
 
     while (true) {
         drawDirectoryContents(path, active);
@@ -191,16 +265,19 @@ int main()
             }
         }
         else if (key == 13) {
-            system("cls");
+            
             int index = 0;
 
-            if (!path.parent_path().empty()) {
-                if (active == 0) {
+            if (active == 0) {
+                if (path != path.root_path()) {
+                    system("cls");
                     path = path.parent_path();
                     elementsCount = getDirectoryEntriesCount(path);
                     continue;
                 }
+                
             }
+            
             index++;
                 
             for (const filesystem::directory_entry& entry : filesystem::directory_iterator(path))
@@ -298,6 +375,28 @@ int main()
                 index++;
             }
             deleteCopyPathFile = true;
+        }
+        else if (key == 12) {
+            SetCursorPosition(startMenuPrintX, infoPrintPosY);
+            cout << "Choose what do you want to search: ";
+            const int searchMenuSize = 2;
+            const char* searchMenu[searchMenuSize] = {
+                "Search by mask",
+                "Search by name",
+            };
+
+            int choice = menuControl(searchMenu, searchMenuSize, startMenuPrintX, infoPrintPosY + 1);
+            string targetFile;
+            if (choice == 2) {
+                SetCursorPosition(startMenuPrintX, infoPrintPosY + 3);
+                ShowConsoleCursor(true);
+                cout << "Enter the name of the file to search with an extention: "; getline(cin, targetFile);
+                ShowConsoleCursor(false);
+                findFileByName(targetFile, path, startMenuPrintX, infoPrintPosY + 5);
+                cin.get();
+            }
+            
+            
         }
     }
 
