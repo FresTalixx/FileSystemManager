@@ -42,7 +42,7 @@ void drawDirectoryContents(const filesystem::path& path, int activeRow)
     };
 
     
-
+    if (path != path.root_directory())
     if (!path.parent_path().empty())
     {
         if (index == activeRow) {
