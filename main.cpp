@@ -11,24 +11,26 @@
 #include "keyboardMenuControll.h"
 
 using namespace std;
+using namespace std::chrono_literals;
 
 int startMenuPrintX = 55;
 int startMenuPrintY = 3;
-const int menuSize = 9;
+const int menuSize = 10;
 
 int infoPrintPosY = startMenuPrintY + menuSize + 1;
 
 // print all of the disks
-void listAllTheDisks(string* disks) {
+void listAllTheDisks(string disks[], int& count) {
     DWORD drives = GetLogicalDrives();
+    count = 0;
 
     for (char letter = 'A'; letter <= 'Z'; ++letter) {
         if (drives & (1 << (letter - 'A'))) {
             string root = string(1, letter) + ":\\";
             try {
                 if (filesystem::exists(root)) {
-                    cout << root << "\n";
-                    disks[letter - 'A'] = root;
+                    /*cout << root << "\n";*/
+                    disks[count++] = root;
                 }
             }
             catch (const filesystem::filesystem_error& e) {
@@ -64,11 +66,12 @@ void drawDirectoryContents(const filesystem::path& path, int activeRow)
         "Cntl + O - open the file\n",
         "Cntl + X - cut the file\n",
         "Cntl + C - copy the file\n",
-        "Cntl + V - paste the file\n"
+        "Cntl + V - paste the file\n",
+        "Cntl + L - Look for file\n"
     };
 
 
-    if (!path.parent_path().empty())
+    if (!path.empty())
     {
         
         isRoot = false;
@@ -81,66 +84,40 @@ void drawDirectoryContents(const filesystem::path& path, int activeRow)
 
         index++;
     }
-    if (!isRoot) {
-        for (const filesystem::directory_entry& entry : filesystem::directory_iterator(path))
-        {
-            if (index == activeRow) {
-                SetColor(BLACK, WHITE);
-            }
-            else {
-                SetColor(WHITE, BLACK);
-            }
-            // ²ל'ÿ פאיכף
-            cout << left << setw(col1Width) << entry.path().filename().string();
-            // װאיכ קט הטנוךעמנ³ÿ
-            if (entry.is_directory()) {
-                cout << "<DIR>";
-            }
-            else {
-                cout << setw(col2Width) << filesystem::file_size(entry);
-            }
+    
 
-
-
-
-            SetColor(WHITE, BLACK);
-            cout << endl;
-
-            index++;
-
-        }
-    }
-    /*else {
-
+    for (const filesystem::directory_entry& entry : filesystem::directory_iterator(path))
+    {
         if (index == activeRow) {
             SetColor(BLACK, WHITE);
         }
         else {
             SetColor(WHITE, BLACK);
         }
-
-        string drives[26];
-
-        int drivesCount = 0;
-        int index = 0;
-        listAllTheDisks(drives);
-        for (int i = 0; i < 26; i++) {
-            if (!drives[i].empty()) {
-                cout << drives[i] << endl;
-                ++drivesCount;
-            }
-        }*/
-
-       /* SetColor(WHITE, BLACK);
+        // ²ל'ÿ פאיכף
+        cout << left << setw(col1Width) << entry.path().filename().string();
+        // װאיכ קט הטנוךעמנ³ÿ
+        if (entry.is_directory()) {
+            cout << "<DIR>";
+        }
+        else {
+            cout << setw(col2Width) << filesystem::file_size(entry);
+        }
+        //filesystem::file_time_type lastWriteTime = filesystem::last_write_time(path);
+        //cout << lastWriteTime;
+    
+        SetColor(WHITE, BLACK);
         cout << endl;
 
         index++;
-    }*/
-    
+
+    }
+
     for (int i = 0; i < menuSize; ++i) {
         SetCursorPosition(startMenuPrintX, startMenuPrintY + i);
         cout << controlMenu[i];
     }
+    
 }
 
 int getDirectoryEntriesCount(const filesystem::path& path)
@@ -302,6 +279,7 @@ int main()
     bool deleteCopyPathFile = false;
 
     while (true) {
+        
         drawDirectoryContents(path, active);
         // control menu up and down and entity deleting
         int key = _getch();
@@ -350,13 +328,34 @@ int main()
         else if (key == 13) {
             
             int index = 0;
-
+            system("cls");
             if (active == 0) {
                 if (path != path.root_path()) {
                     system("cls");
                     path = path.parent_path();
                     elementsCount = getDirectoryEntriesCount(path);
                     continue;
+                }
+                else {
+                    path = "";
+                    system("cls");
+                    string disks[26];
+                    int count;
+                    listAllTheDisks(disks, count);
+
+                    const char* cDisks[26];
+                    for (int i = 0; i < count; i++) {
+                        cDisks[i] = disks[i].c_str();
+                    }
+                    cout << "Current path: This PC" << endl;
+                    cout << string(path.string().length() + 14, '-') << endl;
+
+                    int choice = menuControl(cDisks, count, 0, 2);
+
+                    path = disks[choice - 1];
+                    system("cls");
+                    path = path.parent_path();
+                    elementsCount = getDirectoryEntriesCount(path);
                 }
                 
             }
